@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agenda Profissional + Conversor PDF | WhatsApp/E-mail</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1E88E5',
+                        secondary: '#0D47A1',
+                        accent: '#00ACC1',
+                        alert: '#F44336',
+                        warning: '#FFB300',
+                        success: '#43A047',
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        .toast-notify { position: fixed; bottom: 20px; right: 20px; background: #323232; color: white; padding: 12px 20px; border-radius: 8px; z-index: 1000; opacity: 0; transition: opacity 0.3s; pointer-events: none; font-size: 0.9rem; }
+        .toast-notify.show { opacity: 1; }
+        .animate-pulse-fast { animation: pulse-fast 1.5s infinite; }
+        @keyframes pulse-fast { 0%,100%{opacity:1} 50%{opacity:0.7} }
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 font-sans text-gray-800 min-h-screen">
+    <div class="container mx-auto px-2 md:px-4 py-4 max-w-7xl">
+        <!-- Cabeçalho -->
+        <header class="bg-gradient-to-r from-primary to-secondary text-white rounded-2xl shadow-xl p-5 mb-6">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div>
+                    <h1 class="text-[clamp(1.2rem,3vw,1.8rem)] font-bold flex items-center gap-2">
+                        <i class="fa fa-calendar-check-o text-yellow-300"></i> Agenda Profissional + Conversor PDF | Santos/SP
+                    </h1>
+                    <p class="text-sm opacity-95">Feriados, tarefas, alertas, WhatsApp/E-mail e conversão de PDF</p>
+                </div>
+                <div class="mt-3 md:mt-0">
+                    <span class="bg-white/30 backdrop-blur-sm px-3 py-1 rounded-full text-sm font-semibold" id="data-atual"></span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Barra de ferramentas -->
+        <div class="bg-white/90 rounded-xl shadow-md p-3 mb-6 flex flex-wrap gap-3 items-center justify-between">
+            <div class="flex gap-2">
+                <button id="btn-mensal" class="bg-primary text-white px-4 py-2 rounded-lg shadow-md transition hover:scale-105">Mensal</button>
+                <button id="btn-semanal" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition hover:bg-gray-300">Semanal</button>
+                <button id="btn-diario" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition hover:bg-gray-300">Diário</button>
+                <button id="btn-lista" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition hover:bg-gray-300">Lista</button>
+            </div>
+            <div class="flex gap-2">
+                <button id="btn-contatos" class="bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-md hover:bg-purple-700">
+                    <i class="fa fa-address-book"></i> Contatos
+                </button>
+                <button id="btn-novo" class="bg-accent text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-md hover:bg-accent/90">
+                    <i class="fa fa-plus"></i> Nova Atividade
+                </button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Calendário -->
+            <div class="lg:col-span-2 bg-white rounded-xl shadow-xl p-4">
+                <div class="flex justify-between mb-4">
+                    <button id="prev-mes" class="p-2 rounded-full bg-gray-100 hover:bg-primary hover:text-white transition"><i class="fa fa-chevron-left"></i></button>
+                    <h2 id="mes-ano" class="text-xl font-extrabold text-primary"></h2>
+                    <button id="next-mes" class="p-2 rounded-full bg-gray-100 hover:bg-primary hover:text-white transition"><i class="fa fa-chevron-right"></i></button>
+                </div>
+                <div class="grid grid-cols-7 mb-2 bg-primary/10 rounded-lg py-2">
+                    <div class="text-center font-bold text-primary">D</div><div class="text-center font-bold text-primary">S</div>
+                    <div class="text-center font-bold text-primary">T</div><div class="text-center font-bold text-primary">Q</div>
+                    <div class="text-center font-bold text-primary">Q</div><div class="text-center font-bold text-primary">S</div>
+                    <div class="text-center font-bold text-primary">S</div>
+                </div>
+                <div id="grade-calendario" class="grid grid-cols-7 gap-1.5"></div>
+                <div class="mt-6 pt-4 border-t flex flex-wrap gap-4 text-xs font-medium">
+                    <div class="flex items-center gap-1"><span class="w-4 h-4 rounded-full bg-blue-500"></span> Administrativo</div>
+                    <div class="flex items-center gap-1"><span class="w-4 h-4 rounded-full bg-green-500"></span> Financeiro</div>
+                    <div class="flex items-center gap-1"><span class="w-4 h-4 rounded-full bg-yellow-500"></span> Reuniões</div>
+                    <div class="flex items-center gap-1"><span class="w-4 h-4 rounded-full bg-red-500"></span> Prazos</div>
+                    <div class="flex items-center gap-1"><span class="w-4 h-4 rounded-full bg-amber-300"></span> Feriado</div>
+                    <div class="flex items-center gap-1"><span class="w-4 h-4 rounded-full bg-alert animate-pulse"></span> Atrasado</div>
+                </div>
+            </div>
+
+            <!-- Lista de atividades + busca -->
+            <div class="bg-white rounded-xl shadow-xl p-4 h-fit">
+                <h3 class="text-lg font-bold text-primary mb-4"><i class="fa fa-list-ul"></i> Atividades</h3>
+                <input type="text" id="busca-atividade" placeholder="Buscar por título ou responsável..." class="w-full px-3 py-2 border rounded-lg mb-4">
+                <div id="lista-atividades" class="space-y-3 max-h-[500px] overflow-y-auto custom-scroll"></div>
+                <div class="mt-6 pt-4 border-t">
+                    <h4 class="text-sm font-semibold">Exportar</h4>
+                    <div class="flex gap-2 mt-1">
+                        <button id="export-csv" class="text-xs bg-gray-100 px-3 py-1 rounded-full hover:bg-gray-200"><i class="fa fa-file-excel-o text-green-600"></i> CSV</button>
+                        <button id="export-pdf" class="text-xs bg-gray-100 px-3 py-1 rounded-full hover:bg-gray-200"><i class="fa fa-file-pdf-o text-red-600"></i> PDF</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Seção: Conversor de PDF para Word/Excel -->
+        <div class="mt-8 bg-white rounded-xl shadow-lg p-5 border border-blue-200">
+            <div class="flex items-center gap-2 text-blue-700">
+                <i class="fa fa-file-pdf-o text-xl"></i>
+                <h3 class="text-lg font-bold">📄 CONVERSOR DE PDF</h3>
+            </div>
+            <p class="text-gray-600 text-sm mb-3">Envie um PDF e converta seu texto para Word (.doc) ou Excel (.xlsx).</p>
+            <div class="flex flex-wrap gap-4 items-end">
+                <div class="flex-1 min-w-[200px]">
+                    <label class="block text-sm font-medium">Arquivo PDF</label>
+                    <input type="file" id="arquivo-pdf" accept=".pdf" class="w-full border rounded-lg p-2 text-sm">
+                </div>
+                <div>
+                    <button id="btn-converter-word" class="bg-green-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-green-700">
+                        <i class="fa fa-file-word-o"></i> Converter para Word
+                    </button>
+                </div>
+                <div>
+                    <button id="btn-converter-excel" class="bg-emerald-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-emerald-700">
+                        <i class="fa fa-file-excel-o"></i> Converter para Excel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Atividade (criar/editar) -->
+    <div id="modal-atividade" class="fixed inset-0 bg-black/60 z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div class="p-5 border-b bg-primary/5 flex justify-between sticky top-0 bg-white">
+                <h3 id="titulo-modal" class="text-xl font-bold text-primary">Nova Atividade</h3>
+                <button class="fechar-modal text-gray-500 text-2xl hover:text-red-500">&times;</button>
+            </div>
+            <form id="form-atividade" class="p-5 space-y-4">
+                <input type="hidden" id="id-atividade">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><label class="block text-sm font-medium">Título *</label><input type="text" id="titulo" required class="w-full border rounded-lg p-2"></div>
+                    <div><label class="block text-sm font-medium">Categoria</label><select id="tipo" class="w-full border rounded-lg p-2"><option value="administrativo">Administrativo</option><option value="financeiro">Financeiro</option><option value="reuniao">Reunião</option><option value="prazo">Prazo Legal</option><option value="outros">Outros</option></select></div>
+                </div>
+                <div><label class="block text-sm font-medium">Descrição</label><textarea id="descricao" rows="2" class="w-full border rounded-lg p-2"></textarea></div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div><label class="block text-sm font-medium">Data Início *</label><input type="date" id="data-inicio" required class="w-full border rounded-lg p-2"></div>
+                    <div><label class="block text-sm font-medium">Hora Início *</label><input type="time" id="hora-inicio" required class="w-full border rounded-lg p-2"></div>
+                    <div><label class="block text-sm font-medium">Hora Fim</label><input type="time" id="hora-fim" class="w-full border rounded-lg p-2"></div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><label class="block text-sm font-medium">Responsável</label><input list="lista-responsaveis" id="responsavel" class="w-full border rounded-lg p-2"><datalist id="lista-responsaveis"></datalist></div>
+                    <div><label class="block text-sm font-medium">Status</label><select id="status" class="w-full border rounded-lg p-2"><option value="pendente">Pendente</option><option value="andamento">Em Andamento</option><option value="concluido">Concluída</option><option value="cancelado">Cancelada</option></select></div>
+                </div>
+                <div class="border rounded-lg p-3 bg-gray-50">
+                    <h4 class="font-semibold text-sm">Alertas</h4>
+                    <select id="alerta-tempo" class="w-1/2 border rounded p-1 text-sm"><option value="0">No horário</option><option value="15">15 min antes</option><option value="60">1h antes</option><option value="1440">1 dia antes</option></select>
+                    <div class="mt-2"><input type="checkbox" id="alerta-atraso" checked> <span class="text-sm">Alerta de atraso (a cada 1h)</span></div>
+                </div>
+                <div class="flex justify-end gap-3 pt-4">
+                    <button type="button" class="fechar-modal px-4 py-2 bg-gray-200 rounded-lg">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg shadow hover:bg-secondary">Salvar Atividade</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Visualizar atividade (com WhatsApp e E-mail) -->
+    <div id="modal-visualizar" class="fixed inset-0 bg-black/60 z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div class="p-5 border-b flex justify-between sticky top-0 bg-white"><h3 id="viz-titulo" class="text-xl font-bold text-primary"></h3><button class="fechar-modal text-gray-500 text-2xl">&times;</button></div>
+            <div class="p-5 space-y-3">
+                <div class="flex gap-2"><span id="viz-status" class="px-2 py-1 rounded-full text-xs font-bold"></span><span id="viz-tipo" class="px-2 py-1 bg-gray-100 rounded-full text-xs"></span></div>
+                <p id="viz-descricao" class="text-gray-600"></p>
+                <div class="grid grid-cols-2 gap-2 text-sm"><div><strong>Data:</strong> <span id="viz-data"></span></div><div><strong>Horário:</strong> <span id="viz-horario"></span></div><div><strong>Responsável:</strong> <span id="viz-resp"></span></div></div>
+                
+                <!-- Envio de mensagens (WhatsApp e E-mail) -->
+                <div class="border-t border-b py-3 space-y-2">
+                    <h4 class="font-semibold text-sm">Enviar notificação</h4>
+                    <div class="flex gap-2">
+                        <select id="select-whatsapp" class="flex-1 border rounded p-1 text-sm"></select>
+                        <input type="tel" id="num-whatsapp" placeholder="13999999999" class="w-24 border rounded p-1">
+                        <button id="btn-whatsapp" class="bg-green-600 text-white px-3 py-1 rounded text-sm">WhatsApp</button>
+                    </div>
+                    <div class="flex gap-2">
+                        <select id="select-email" class="flex-1 border rounded p-1 text-sm"></select>
+                        <input type="email" id="dest-email" placeholder="email@exemplo.com" class="w-32 border rounded p-1">
+                        <button id="btn-email" class="bg-blue-600 text-white px-3 py-1 rounded text-sm">E-mail</button>
+                    </div>
+                </div>
+
+                <div class="flex gap-2 pt-2">
+                    <button id="btn-editar-visual" class="flex-1 bg-yellow-100 text-yellow-700 py-2 rounded-lg">Editar</button>
+                    <button id="btn-excluir-visual" class="flex-1 bg-red-100 text-red-700 py-2 rounded-lg">Excluir</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Contatos -->
+    <div id="modal-contatos" class="fixed inset-0 bg-black/60 z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md">
+            <div class="p-5 border-b"><h3 class="text-xl font-bold text-purple-600"><i class="fa fa-address-book"></i> Contatos</h3></div>
+            <div class="p-5 space-y-3">
+                <input type="text" id="contato-nome" placeholder="Nome" class="w-full border rounded p-2">
+                <input type="tel" id="contato-tel" placeholder="WhatsApp (com DDD)" class="w-full border rounded p-2">
+                <input type="email" id="contato-email" placeholder="E-mail" class="w-full border rounded p-2">
+                <button id="add-contato" class="bg-purple-600 text-white w-full py-2 rounded-lg">Adicionar Contato</button>
+                <ul id="lista-contatos" class="max-h-40 overflow-y-auto text-sm space-y-1"></ul>
+            </div>
+            <div class="p-3 text-right"><button class="fechar-modal px-4 py-1 bg-gray-200 rounded">Fechar</button></div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast-notify"></div>
+
+    <script>
+        (function() {
+            // ==================== DADOS E FUNÇÕES DO CALENDÁRIO ====================
+            const feriadosSantos = [
+                { dia:1, mes:0, nome:"Confraternização" },{ dia:20, mes:0, nome:"São Sebastião" },
+                { dia:18, mes:1, nome:"Carnaval" },{ dia:3, mes:3, nome:"Sexta-Feira Santa" },
+                { dia:21, mes:3, nome:"Tiradentes" },{ dia:1, mes:4, nome:"Dia do Trabalho" },
+                { dia:4, mes:5, nome:"Corpus Christi" },{ dia:7, mes:8, nome:"Independência" },
+                { dia:12, mes:9, nome:"N.S. Aparecida" },{ dia:2, mes:10, nome:"Finados" },
+                { dia:15, mes:10, nome:"Proclamação" },{ dia:8, mes:11, nome:"N.S. Conceição" },
+                { dia:25, mes:11, nome:"Natal" }
+            ];
+            
+            let atividades = JSON.parse(localStorage.getItem('atividadesCalendario') || '[]');
+            let contatos = JSON.parse(localStorage.getItem('contatosCalendario') || '[]');
+            let anoAtual = new Date().getFullYear();
+            let mesAtual = new Date().getMonth();
+            let idEdicao = null;
+            let atividadeAtualId = null;
+
+            const grade = document.getElementById('grade-calendario');
+            const mesAnoEl = document.getElementById('mes-ano');
+            const listaDiv = document.getElementById('lista-atividades');
+            const buscaInput = document.getElementById('busca-atividade');
+            const modalAtividadeDiv = document.getElementById('modal-atividade');
+            const modalVisualizarDiv = document.getElementById('modal-visualizar');
+            const modalContatosDiv = document.getElementById('modal-contatos');
+            const toast = document.getElementById('toast');
+
+            function showToast(msg, isError = false) {
+                toast.textContent = msg;
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 3000);
+            }
+
+            function ehFeriado(dia, mes) { return feriadosSantos.find(f => f.dia === dia && f.mes === mes); }
+            function corTipo(tipo) {
+                const cores = { administrativo:'bg-blue-500', financeiro:'bg-green-500', reuniao:'bg-yellow-500', prazo:'bg-red-500', outros:'bg-gray-500' };
+                return cores[tipo] || 'bg-gray-500';
+            }
+            function verificarAtraso(ativ) {
+                if (ativ.status === 'concluido' || ativ.status === 'cancelado') return false;
+                const dataFim = new Date(`${ativ.dataInicio}T${ativ.horaFim || '23:59'}`);
+                return dataFim < new Date();
+            }
+            function formatarDataBr(d) { return new Intl.DateTimeFormat('pt-BR').format(d); }
+            function gerarMensagem(ativ) {
+                return `*${ativ.titulo}*\nData: ${ativ.dataInicio.split('-').reverse().join('/')} ${ativ.horaInicio}\nDesc: ${ativ.descricao || '-'}\nResp: ${ativ.responsavel || '-'}`;
+            }
+
+            function renderizarCalendario() {
+                grade.innerHTML = '';
+                const primeiroDia = new Date(anoAtual, mesAtual, 1).getDay();
+                const diasNoMes = new Date(anoAtual, mesAtual + 1, 0).getDate();
+                const nomeMes = new Intl.DateTimeFormat('pt-BR', { month: 'long' }).format(new Date(anoAtual, mesAtual));
+                mesAnoEl.textContent = `${nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1)} ${anoAtual}`;
+                document.getElementById('data-atual').textContent = `Hoje: ${formatarDataBr(new Date())}`;
+                
+                for (let i = 0; i < primeiroDia; i++) {
+                    let vazio = document.createElement('div');
+                    vazio.className = 'h-24 bg-gray-50 rounded-lg';
+                    grade.appendChild(vazio);
+                }
+                
+                const hoje = new Date();
+                for (let d = 1; d <= diasNoMes; d++) {
+                    let feriado = ehFeriado(d, mesAtual);
+                    let isHoje = (d === hoje.getDate() && mesAtual === hoje.getMonth() && anoAtual === hoje.getFullYear());
+                    let diaDiv = document.createElement('div');
+                    diaDiv.className = `h-24 p-1.5 rounded-xl border-2 cursor-pointer hover:scale-[1.02] transition ${feriado ? 'bg-amber-50 border-amber-300' : isHoje ? 'bg-gradient-to-br from-primary/20 to-accent/20 border-primary' : 'bg-white border-gray-200'}`;
+                    diaDiv.innerHTML = `<div class="flex justify-between"><span class="text-sm font-bold">${d}</span>${feriado ? `<span class="text-[9px] bg-amber-200 px-1 rounded-full">${feriado.nome}</span>` : ''}</div><div class="mt-1 space-y-0.5"></div>`;
+                    
+                    let atividadesDia = atividades.filter(a => {
+                        let [aa, am, ad] = a.dataInicio.split('-').map(Number);
+                        return ad === d && (am - 1) === mesAtual && aa === anoAtual;
+                    });
+                    atividadesDia.forEach(ativ => {
+                        let badge = document.createElement('div');
+                        badge.className = `text-[9px] p-0.5 px-1 rounded-md text-white truncate ${corTipo(ativ.tipo)} ${verificarAtraso(ativ) ? 'animate-pulse ring-1 ring-alert' : ''}`;
+                        badge.innerText = (verificarAtraso(ativ) ? '⚠️ ' : '') + ativ.titulo;
+                        badge.setAttribute('data-id', ativ.id);
+                        badge.onclick = (e) => { e.stopPropagation(); abrirVisualizar(ativ.id); };
+                        diaDiv.querySelector('.mt-1').appendChild(badge);
+                    });
+                    diaDiv.onclick = () => {
+                        document.getElementById('data-inicio').value = `${anoAtual}-${String(mesAtual + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                        abrirModalCadastro();
+                    };
+                    grade.appendChild(diaDiv);
+                }
+                atualizarListaAtividades();
+                verificarAlertas();
+            }
+
+            function atualizarListaAtividades() {
+                let filtro = buscaInput.value.toLowerCase();
+                let filtered = atividades.filter(a => a.titulo.toLowerCase().includes(filtro) || (a.responsavel || '').toLowerCase().includes(filtro));
+                if (filtered.length === 0) { listaDiv.innerHTML = '<p class="text-center text-gray-400 py-4">Nenhuma atividade encontrada</p>'; return; }
+                listaDiv.innerHTML = '';
+                filtered.sort((a, b) => new Date(a.dataInicio) - new Date(b.dataInicio)).forEach(ativ => {
+                    let atrasado = verificarAtraso(ativ);
+                    let div = document.createElement('div');
+                    div.className = `p-3 rounded-xl shadow-sm border-l-8 ${corTipo(ativ.tipo).replace('bg-', 'border-')} bg-white cursor-pointer hover:shadow-md ${atrasado ? 'bg-red-50' : ''}`;
+                    div.innerHTML = `<div class="flex justify-between"><span class="font-bold text-sm">${atrasado ? '⚠️ ' : ''}${ativ.titulo}</span><span class="text-[10px] text-gray-500">${ativ.dataInicio.split('-').reverse().join('/')}</span></div>
+                                    <div class="text-xs truncate">${ativ.descricao || ''}</div>
+                                    <span class="text-[9px] bg-gray-200 px-2 rounded-full">${ativ.status}</span>`;
+                    div.onclick = () => abrirVisualizar(ativ.id);
+                    listaDiv.appendChild(div);
+                });
+            }
+            buscaInput.addEventListener('input', atualizarListaAtividades);
+
+            function salvarAtividade(ativ) {
+                ativ.mensagem = gerarMensagem(ativ);
+                if (ativ.id) {
+                    let idx = atividades.findIndex(a => a.id === ativ.id);
+                    atividades[idx] = ativ;
+                } else {
+                    ativ.id = Date.now();
+                    atividades.push(ativ);
+                }
+                localStorage.setItem('atividadesCalendario', JSON.stringify(atividades));
+                renderizarCalendario();
+                showToast('Atividade salva!');
+            }
+            function excluirAtividade(id) {
+                if (confirm('Excluir permanentemente esta atividade?')) {
+                    atividades = atividades.filter(a => a.id !== id);
+                    localStorage.setItem('atividadesCalendario', JSON.stringify(atividades));
+                    renderizarCalendario();
+                    fecharModais();
+                    showToast('Excluída');
+                }
+            }
+
+            function abrirModalCadastro(editarId = null) {
+                document.getElementById('form-atividade').reset();
+                if (editarId) {
+                    let ativ = atividades.find(a => a.id === editarId);
+                    if (ativ) {
+                        document.getElementById('id-atividade').value = ativ.id;
+                        document.getElementById('titulo').value = ativ.titulo;
+                        document.getElementById('tipo').value = ativ.tipo;
+                        document.getElementById('descricao').value = ativ.descricao || '';
+                        document.getElementById('data-inicio').value = ativ.dataInicio;
+                        document.getElementById('hora-inicio').value = ativ.horaInicio;
+                        document.getElementById('hora-fim').value = ativ.horaFim || '';
+                        document.getElementById('responsavel').value = ativ.responsavel || '';
+                        document.getElementById('status').value = ativ.status;
+                        document.getElementById('alerta-tempo').value = ativ.alertaTempo || 0;
+                        document.getElementById('alerta-atraso').checked = ativ.alertaAtraso !== false;
+                        document.getElementById('titulo-modal').innerText = 'Editar Atividade';
+                    }
+                } else {
+                    document.getElementById('id-atividade').value = '';
+                    document.getElementById('titulo-modal').innerText = 'Nova Atividade';
+                }
+                modalAtividadeDiv.classList.remove('hidden');
+            }
+
+            function abrirVisualizar(id) {
+                let ativ = atividades.find(a => a.id === id);
+                if (!ativ) return;
+                atividadeAtualId = id;
+                document.getElementById('viz-titulo').innerText = ativ.titulo;
+                document.getElementById('viz-descricao').innerText = ativ.descricao || '';
+                document.getElementById('viz-data').innerText = ativ.dataInicio.split('-').reverse().join('/');
+                document.getElementById('viz-horario').innerText = `${ativ.horaInicio} ${ativ.horaFim ? `às ${ativ.horaFim}` : ''}`;
+                document.getElementById('viz-resp').innerText = ativ.responsavel || '-';
+                let statusSpan = document.getElementById('viz-status');
+                statusSpan.innerText = ativ.status.toUpperCase();
+                statusSpan.className = `px-2 py-1 rounded-full text-xs font-bold ${ativ.status === 'concluido' ? 'bg-green-200 text-green-800' : ativ.status === 'pendente' ? 'bg-yellow-200 text-yellow-800' : 'bg-gray-200'}`;
+                document.getElementById('viz-tipo').innerText = ativ.tipo;
+                // Limpa campos de envio
+                document.getElementById('num-whatsapp').value = '';
+                document.getElementById('dest-email').value = '';
+                document.getElementById('select-whatsapp').value = '';
+                document.getElementById('select-email').value = '';
+                modalVisualizarDiv.classList.remove('hidden');
+            }
+
+            function fecharModais() {
+                modalAtividadeDiv.classList.add('hidden');
+                modalVisualizarDiv.classList.add('hidden');
+                modalContatosDiv.classList.add('hidden');
+                idEdicao = null;
+            }
+
+            function dispararNotificacao(titulo, corpo) {
+                if (Notification.permission === 'granted') new Notification(titulo, { body: corpo });
+                showToast(corpo);
+            }
+            function verificarAlertas() {
+                const agora = new Date();
+                atividades.forEach(ativ => {
+                    if (ativ.status === 'concluido' || ativ.status === 'cancelado') return;
+                    const dataHora = new Date(`${ativ.dataInicio}T${ativ.horaInicio}`);
+                    const alertaTime = (parseInt(ativ.alertaTempo) || 0) * 60000;
+                    const momentoAlerta = new Date(dataHora.getTime() - alertaTime);
+                    if (agora >= momentoAlerta && agora < dataHora && !ativ.alertaDisparado) {
+                        dispararNotificacao('🔔 Lembrete', ativ.titulo);
+                        ativ.alertaDisparado = true;
+                        salvarAtividade(ativ);
+                    }
+                    if (verificarAtraso(ativ) && ativ.alertaAtraso) {
+                        const ultimo = ativ.ultimoAlertaAtraso ? new Date(ativ.ultimoAlertaAtraso) : new Date(0);
+                        if ((agora - ultimo) > 3600000) {
+                            dispararNotificacao('⚠️ Atraso', `Atividade "${ativ.titulo}" está atrasada.`);
+                            ativ.ultimoAlertaAtraso = agora.toISOString();
+                            salvarAtividade(ativ);
+                        }
+                    }
+                });
+            }
+            setInterval(verificarAlertas, 60000);
+            if (Notification.permission !== 'granted') Notification.requestPermission();
+
+            // ==================== CONTATOS E ENVIOS ====================
+            function atualizarSelectsContatos() {
+                let selW = document.getElementById('select-whatsapp'), selE = document.getElementById('select-email'), listaResp = document.getElementById('lista-responsaveis');
+                selW.innerHTML = '<option>Selecione um contato</option>';
+                selE.innerHTML = '<option>Selecione um contato</option>';
+                listaResp.innerHTML = '';
+                contatos.forEach(c => {
+                    if (c.telefone) selW.add(new Option(c.nome, c.telefone));
+                    if (c.email) selE.add(new Option(c.nome, c.email));
+                    listaResp.add(new Option(c.nome, c.nome));
+                });
+            }
+            function renderListaContatos() {
+                let ul = document.getElementById('lista-contatos');
+                if (!contatos.length) { ul.innerHTML = '<li class="text-gray-400">Nenhum contato</li>'; return; }
+                ul.innerHTML = contatos.map(c => `<li class="flex justify-between items-center p-1 border-b"><span><b>${c.nome}</b><br><small>${c.telefone || ''} ${c.email || ''}</small></span><button onclick="removerContato(${c.id})" class="text-red-500 text-xs">🗑️</button></li>`).join('');
+            }
+            window.removerContato = function(id) {
+                contatos = contatos.filter(c => c.id !== id);
+                localStorage.setItem('contatosCalendario', JSON.stringify(contatos));
+                renderListaContatos();
+                atualizarSelectsContatos();
+            };
+            document.getElementById('add-contato').addEventListener('click', () => {
+                let nome = document.getElementById('contato-nome').value.trim();
+                if (!nome) return showToast('Nome obrigatório', true);
+                let tel = document.getElementById('contato-tel').value.trim();
+                let email = document.getElementById('contato-email').value.trim();
+                contatos.push({ id: Date.now(), nome, telefone: tel, email });
+                localStorage.setItem('contatosCalendario', JSON.stringify(contatos));
+                renderListaContatos();
+                atualizarSelectsContatos();
+                document.getElementById('contato-nome').value = '';
+                document.getElementById('contato-tel').value = '';
+                document.getElementById('contato-email').value = '';
+                showToast('Contato adicionado');
+            });
+
+            // Eventos de envio
+            document.getElementById('btn-whatsapp').addEventListener('click', () => {
+                let ativ = atividades.find(a => a.id === atividadeAtualId);
+                if (!ativ) return;
+                let num = document.getElementById('num-whatsapp').value.replace(/\D/g, '') || document.getElementById('select-whatsapp').value;
+                if (!num) return showToast('Número obrigatório', true);
+                window.open(`https://wa.me/55${num}?text=${encodeURIComponent(ativ.mensagem)}`, '_blank');
+            });
+            document.getElementById('btn-email').addEventListener('click', () => {
+                let ativ = atividades.find(a => a.id === atividadeAtualId);
+                if (!ativ) return;
+                let email = document.getElementById('dest-email').value || document.getElementById('select-email').value;
+                if (!email) return showToast('E-mail obrigatório', true);
+                window.open(`mailto:${email}?subject=${encodeURIComponent(ativ.titulo)}&body=${encodeURIComponent(ativ.mensagem)}`, '_blank');
+            });
+
+            // ==================== EXPORTAÇÕES ====================
+            function exportCSV() {
+                let rows = [['Título', 'Data', 'Hora', 'Status', 'Responsável']];
+                atividades.forEach(a => rows.push([a.titulo, a.dataInicio, a.horaInicio, a.status, a.responsavel || '']));
+                let csv = rows.map(r => r.join(',')).join('\n');
+                let blob = new Blob([csv], { type: 'text/csv' });
+                let link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = 'agenda.csv';
+                link.click();
+            }
+            function exportPDF() {
+                let win = window.open();
+                win.document.write(`<html><head><title>Relatório Agenda</title><style>body{font-family:sans-serif}table{border-collapse:collapse}th,td{border:1px solid #ccc;padding:6px}th{background:#1565C0;color:#fff}</style></head><body><h1>Atividades</h1><table><tr><th>Título</th><th>Data</th><th>Hora</th><th>Status</th><tr>`);
+                atividades.forEach(a => win.document.write(`<tr><td>${a.titulo}</td><td>${a.dataInicio}</td><td>${a.horaInicio}</td><td>${a.status}</td></tr>`));
+                win.document.write('</table></body></html>');
+                win.document.close();
+                win.print();
+            }
+            document.getElementById('export-csv').addEventListener('click', exportCSV);
+            document.getElementById('export-pdf').addEventListener('click', exportPDF);
+
+            // ==================== NAVEGAÇÃO ====================
+            document.getElementById('prev-mes').addEventListener('click', () => { mesAtual--; if (mesAtual < 0) { mesAtual = 11; anoAtual--; } renderizarCalendario(); });
+            document.getElementById('next-mes').addEventListener('click', () => { mesAtual++; if (mesAtual > 11) { mesAtual = 0; anoAtual++; } renderizarCalendario(); });
+            document.getElementById('btn-mensal').addEventListener('click', () => renderizarCalendario());
+            document.getElementById('btn-semanal').addEventListener('click', () => showToast('Apenas visualização mensal disponível'));
+            document.getElementById('btn-diario').addEventListener('click', () => showToast('Apenas visualização mensal disponível'));
+            document.getElementById('btn-lista').addEventListener('click', () => showToast('Apenas visualização mensal disponível'));
+            document.getElementById('btn-novo').addEventListener('click', () => abrirModalCadastro());
+            document.getElementById('btn-contatos').addEventListener('click', () => modalContatosDiv.classList.remove('hidden'));
+            document.querySelectorAll('.fechar-modal').forEach(btn => btn.addEventListener('click', fecharModais));
+            document.getElementById('btn-editar-visual').addEventListener('click', () => { fecharModais(); abrirModalCadastro(atividadeAtualId); });
+            document.getElementById('btn-excluir-visual').addEventListener('click', () => { excluirAtividade(atividadeAtualId); fecharModais(); });
+
+            document.getElementById('form-atividade').addEventListener('submit', (e) => {
+                e.preventDefault();
+                let id = document.getElementById('id-atividade').value;
+                const atividade = {
+                    id: id ? parseInt(id) : null,
+                    titulo: document.getElementById('titulo').value,
+                    tipo: document.getElementById('tipo').value,
+                    descricao: document.getElementById('descricao').value,
+                    dataInicio: document.getElementById('data-inicio').value,
+                    horaInicio: document.getElementById('hora-inicio').value,
+                    horaFim: document.getElementById('hora-fim').value,
+                    responsavel: document.getElementById('responsavel').value,
+                    status: document.getElementById('status').value,
+                    alertaTempo: document.getElementById('alerta-tempo').value,
+                    alertaAtraso: document.getElementById('alerta-atraso').checked,
+                    alertaDisparado: false,
+                    ultimoAlertaAtraso: null
+                };
+                salvarAtividade(atividade);
+                fecharModais();
+            });
+
+            // ==================== CONVERSOR DE PDF ====================
+            const pdfInput = document.getElementById('arquivo-pdf');
+            const btnWord = document.getElementById('btn-converter-word');
+            const btnExcel = document.getElementById('btn-converter-excel');
+
+            async function extrairTextoPDF(file) {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                let textoCompleto = '';
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const content = await page.getTextContent();
+                    const pageText = content.items.map(item => item.str).join(' ');
+                    textoCompleto += `--- Página ${i} ---\n${pageText}\n\n`;
+                }
+                return textoCompleto;
+            }
+
+            btnWord.addEventListener('click', async () => {
+                if (!pdfInput.files.length) { showToast('Selecione um PDF', true); return; }
+                const file = pdfInput.files[0];
+                showToast('Extraindo texto...');
+                try {
+                    const texto = await extrairTextoPDF(file);
+                    const nomeBase = file.name.replace(/\.pdf$/i, '');
+                    const htmlContent = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Conversão PDF</title></head><body style="font-family:Arial; margin:40px"><h1>Documento convertido de PDF</h1><p><strong>Original:</strong> ${file.name}</p><hr><pre style="white-space:pre-wrap">${texto}</pre></body></html>`;
+                    const blob = new Blob([htmlContent], { type: 'application/msword' });
+                    saveAs(blob, `${nomeBase}.doc`);
+                    showToast('Word gerado!');
+                } catch (err) { showToast('Erro: ' + err.message, true); }
+            });
+
+            btnExcel.addEventListener('click', async () => {
+                if (!pdfInput.files.length) { showToast('Selecione um PDF', true); return; }
+                const file = pdfInput.files[0];
+                showToast('Gerando planilha...');
+                try {
+                    const texto = await extrairTextoPDF(file);
+                    const linhas = texto.split('\n');
+                    const dados = linhas.map(linha => [linha]);
+                    const ws = XLSX.utils.aoa_to_sheet(dados);
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, 'Texto_PDF');
+                    XLSX.writeFile(wb, `${file.name.replace(/\.pdf$/i, '')}_conversao.xlsx`);
+                    showToast('Excel gerado!');
+                } catch (err) { showToast('Erro: ' + err.message, true); }
+            });
+
+            // Inicialização
+            renderizarCalendario();
+            atualizarSelectsContatos();
+            renderListaContatos();
+        })();
+    </script>
+</body>
+</html>
